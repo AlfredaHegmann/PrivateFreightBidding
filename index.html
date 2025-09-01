@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Freight Bidding Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.1/dist/ethers.umd.min.js"></script>
+    <script src="https://unpkg.com/fhevmjs@0.5.0/bundle/index.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: transform 0.3s ease;
+        }
+        .privacy-badge {
+            background: linear-gradient(45deg, #00d4aa, #00a8cc);
+        }
+        .random-color-bg {
+            transition: background-color 0.3s ease;
+        }
+        .random-color-text {
+            transition: color 0.3s ease;
+        }
+        .color-animation {
+            animation: colorShift 3s infinite;
+        }
+        @keyframes colorShift {
+            0% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(180deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <nav class="gradient-bg text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-truck text-2xl"></i>
+                    <h1 class="text-xl font-bold">Private Freight Bidding Platform</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="connectWallet" onclick="connectWallet()" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100">
+                        Connect Wallet
+                    </button>
+                    <div id="accountInfo" class="hidden text-sm"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto p-6">
+        <!-- Contract Deployment Notice -->
+        <div id="deploymentNotice" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        <strong>Contract Deployment Required:</strong>
+                        To use this application, you need to:
+                        <br>1. Deploy the PrivateFreightBidding.sol contract to your blockchain network
+                        <br>2. Update the CONTRACT_ADDRESS in app.js with your deployed contract address
+                        <br>3. Have the contract owner verify users as shippers or carriers
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contract Information -->
+        <div id="contractInfo" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 hidden">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">Contract Information</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p><strong>Contract Address:</strong> <span id="contractAddress" class="font-mono"></span></p>
+                        <p><strong>Contract Owner:</strong> <span id="contractOwner" class="font-mono"></span></p>
+                        <p><strong>Your Address:</strong> <span id="yourAddress" class="font-mono"></span></p>
+                        <p><strong>Verification Status:</strong> <span id="verificationStatus"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Platform Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-clipboard-list text-3xl text-purple-500 mb-3 random-color-text"></i>
+                <h3 class="text-lg font-semibold text-gray-700">Active Jobs</h3>
+                <p id="activeJobs" class="text-2xl font-bold text-purple-600 random-color-text">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-users text-3xl text-green-500 mb-3"></i>
+                <h3 class="text-lg font-semibold text-gray-700">Verified Carriers</h3>
+                <p id="verifiedCarriers" class="text-2xl font-bold text-green-600">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-handshake text-3xl text-purple-500 mb-3"></i>
+                <h3 class="text-lg font-semibold text-gray-700">Completed Jobs</h3>
+                <p id="completedJobs" class="text-2xl font-bold text-purple-600">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                <i class="fas fa-shield-alt text-3xl text-indigo-500 mb-3"></i>
+                <h3 class="text-lg font-semibold text-gray-700">Privacy Protection</h3>
+                <p class="text-2xl font-bold text-indigo-600">FHE</p>
+            </div>
+        </div>
+
+        <!-- Owner Admin Panel -->
+        <div id="ownerPanel" class="hidden bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-400 p-6 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-crown text-red-400"></i>
+                </div>
+                <div class="ml-3 flex-grow">
+                    <h3 class="text-lg font-medium text-red-800">Owner Admin Panel</h3>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="text-md font-semibold text-gray-800 mb-3">Verify Shipper</h4>
+                            <div class="space-y-2">
+                                <input type="text" id="shipperAddress" placeholder="Enter shipper address" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                <button onclick="verifyUserAsShipper()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 text-sm">
+                                    Verify as Shipper
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="text-md font-semibold text-gray-800 mb-3">Verify Carrier</h4>
+                            <div class="space-y-2">
+                                <input type="text" id="carrierAddress" placeholder="Enter carrier address" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                <button onclick="verifyUserAsCarrier()" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 text-sm">
+                                    Verify as Carrier
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="text-md font-semibold text-gray-800 mb-3">Quick Self-Verification</h4>
+                            <div class="space-y-2">
+                                <button onclick="verifySelfAsShipper()" class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 text-sm">
+                                    Verify Myself as Shipper
+                                </button>
+                                <button onclick="verifySelfAsCarrier()" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 text-sm">
+                                    Verify Myself as Carrier
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="text-md font-semibold text-gray-800 mb-3">Check Status</h4>
+                            <div class="space-y-2">
+                                <input type="text" id="checkAddress" placeholder="Enter address to check" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                                <button onclick="checkUserStatus()" class="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 text-sm">
+                                    Check Verification Status
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Selection -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Select Your Role</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="border-2 border-gray-200 rounded-lg p-6 text-center hover:border-purple-500 cursor-pointer card-hover" onclick="selectRole('shipper')">
+                    <i class="fas fa-building text-4xl text-purple-500 mb-4 random-color-text"></i>
+                    <h3 class="text-xl font-semibold text-gray-800">Shipper</h3>
+                    <p class="text-gray-600 mt-2">Post freight jobs and receive anonymous bids</p>
+                </div>
+                <div class="border-2 border-gray-200 rounded-lg p-6 text-center hover:border-green-500 cursor-pointer card-hover" onclick="selectRole('carrier')">
+                    <i class="fas fa-truck text-4xl text-green-500 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-800">Carrier</h3>
+                    <p class="text-gray-600 mt-2">Browse available jobs and submit anonymous bids</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipper Panel -->
+        <div id="shipperPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-plus-circle text-purple-500 mr-2 random-color-text"></i>
+                    Post Freight Job
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Origin</label>
+                        <input type="text" id="origin" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., New York">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Destination</label>
+                        <input type="text" id="destination" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., Los Angeles">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cargo Type</label>
+                        <select id="cargoType" class="w-full p-3 border border-gray-300 rounded-lg">
+                            <option value="">Select cargo type</option>
+                            <option value="General Cargo">General Cargo</option>
+                            <option value="Fragile Items">Fragile Items</option>
+                            <option value="Cold Chain">Cold Chain</option>
+                            <option value="Hazardous Materials">Hazardous Materials</option>
+                            <option value="Oversized Cargo">Oversized Cargo</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="postJobBtn" class="mt-6 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-medium random-color-bg">
+                    <i class="fas fa-paper-plane mr-2"></i>
+                    Post Job
+                </button>
+            </div>
+
+            <!-- My Posted Jobs -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list text-purple-500 mr-2 random-color-text"></i>
+                    My Posted Jobs
+                </h2>
+                <div id="myJobs" class="space-y-4">
+                    <!-- Jobs will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Carrier Panel -->
+        <div id="carrierPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-search text-green-500 mr-2"></i>
+                    Browse Available Jobs
+                </h2>
+                <div class="mb-4">
+                    <button id="refreshJobsBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        <i class="fas fa-sync-alt mr-2"></i>
+                        Refresh Jobs
+                    </button>
+                </div>
+                <div id="availableJobs" class="space-y-4">
+                    <!-- Available jobs will be loaded here -->
+                </div>
+            </div>
+
+            <!-- My Bids -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-gavel text-green-500 mr-2"></i>
+                    My Bids
+                </h2>
+                <div id="myBids" class="space-y-4">
+                    <!-- Bids will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bid Modal -->
+    <div id="bidModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-gavel text-green-500 mr-2"></i>
+                    Submit Bid
+                </h3>
+                <button onclick="closeBidModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Price (USD)</label>
+                <input type="number" step="1" id="bidPrice" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Enter your bid price">
+            </div>
+            <div class="privacy-badge text-white p-3 rounded-lg mb-4">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Your bid will be encrypted using FHE technology for privacy
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="closeBidModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400">
+                    Cancel
+                </button>
+                <button id="submitBidBtn" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
+                    Submit Bid
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verify Modal -->
+    <div id="verifyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-check-circle text-purple-500 mr-2 random-color-text"></i>
+                    Account Verification Required
+                </h3>
+                <button onclick="closeVerifyModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <p class="text-gray-600 mb-4">You need to be verified to use this platform. Please contact the contract owner for verification.</p>
+                <div class="space-y-2">
+                    <button id="verifyShipperBtn" class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 random-color-bg">
+                        Request Shipper Verification
+                    </button>
+                    <button id="verifyCarrierBtn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
+                        Request Carrier Verification
+                    </button>
+                </div>
+            </div>
+            <button onclick="closeVerifyModal()" class="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
