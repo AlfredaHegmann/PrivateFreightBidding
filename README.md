@@ -67,7 +67,7 @@ The system extends beyond traditional freight to support **confidential flight b
 
 ## 🎥 Demonstration Materials
 
-### Video Demonstrations
+### PrivateFreightBidding.mp4
 - **Complete Workflow Demo**: End-to-end platform usage from job posting to completion
 - **Privacy Features Showcase**: Demonstration of FHE encryption and bid privacy
 - **User Role Tutorials**: Separate guides for shippers, carriers, and administrators
